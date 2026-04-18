@@ -1,0 +1,35 @@
+{
+  "name": "pdfcoverandindexpage",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Local-first PDF bundle builder with ordering, cover pages, pagination, OCR, and redaction.",
+  "type": "module",
+  "scripts": {
+    "dev": "C:\\Progra~1\\nodejs\\node.exe .\\node_modules\\vite\\bin\\vite.js",
+    "build": "C:\\Progra~1\\nodejs\\node.exe .\\node_modules\\typescript\\bin\\tsc --noEmit && C:\\Progra~1\\nodejs\\node.exe .\\node_modules\\vite\\bin\\vite.js build",
+    "preview": "C:\\Progra~1\\nodejs\\node.exe .\\node_modules\\vite\\bin\\vite.js preview"
+  },
+  "keywords": [
+    "pdf",
+    "ocr",
+    "redaction",
+    "vite",
+    "react"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.8"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.6.205",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tesseract.js": "^7.0.0"
+  }
+}
