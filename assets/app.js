@@ -37,7 +37,6 @@
       summary: "",
       ocrPages: 0,
     },
-    ocrWorker: null,
     currentOcrLabel: "",
     reviewRenderToken: 0,
   };
@@ -101,7 +100,7 @@
 
   const ocrRuntime = {
     workerPath: new URL("./runtime/tesseract/worker.min.js", window.location.href).toString(),
-    corePath: new URL("./runtime/tesseract-core/", window.location.href).toString(),
+    corePath: new URL("./runtime/tesseract-core/tesseract-core-lstm.wasm.js", window.location.href).toString(),
     langPath: new URL("./runtime/tessdata/", window.location.href).toString(),
     workerBlobURL: false,
   };
@@ -1003,39 +1002,6 @@
     return pages;
   }
 
-  async function ensureOcrWorker() {
-    if (state.ocrWorker) {
-      return state.ocrWorker;
-    }
-
-    addLog("Starting OCR worker.");
-
-    state.ocrWorker = await window.Tesseract.createWorker(
-      "eng",
-      window.Tesseract.OEM.LSTM_ONLY,
-      {
-        workerPath: ocrRuntime.workerPath,
-        corePath: ocrRuntime.corePath,
-        langPath: ocrRuntime.langPath,
-        workerBlobURL: ocrRuntime.workerBlobURL,
-        logger: (message) => {
-          if (!state.busy || !state.currentOcrLabel) {
-            return;
-          }
-
-          const progress = typeof message.progress === "number"
-            ? ` ${Math.round(message.progress * 100)}%`
-            : "";
-          const status = message.status ? message.status : "OCR";
-          setStatus("processing", `${state.currentOcrLabel}. ${status}${progress}`);
-        },
-      },
-      {},
-    );
-
-    return state.ocrWorker;
-  }
-
   async function renderPageForOcr(page) {
     const baseViewport = page.getViewport({ scale: 1 });
     const scale = Math.max(1.5, Math.min(2.1, 1800 / baseViewport.width, 2400 / baseViewport.height));
@@ -1184,9 +1150,24 @@
               state.currentOcrLabel = `OCR page ${processedPages} of ${totalPages}`;
               addLog(`Running OCR on ${documentRecord.name}, page ${pageIndex + 1}.`);
 
-              const worker = await ensureOcrWorker();
               const { canvas, viewport } = await renderPageForOcr(sourcePage);
-              const recognition = await worker.recognize(canvas);
+              const recognition = await window.Tesseract.recognize(canvas, "eng", {
+                workerPath: ocrRuntime.workerPath,
+                corePath: ocrRuntime.corePath,
+                langPath: ocrRuntime.langPath,
+                workerBlobURL: ocrRuntime.workerBlobURL,
+                logger: (message) => {
+                  if (!state.busy || !state.currentOcrLabel) {
+                    return;
+                  }
+
+                  const progress = typeof message.progress === "number"
+                    ? ` ${Math.round(message.progress * 100)}%`
+                    : "";
+                  const status = message.status ? message.status : "OCR";
+                  setStatus("processing", `${state.currentOcrLabel}. ${status}${progress}`);
+                },
+              });
               addInvisibleTextLayer(outputPage, viewport, recognition.data, bodyFont);
 
               canvas.width = 0;
@@ -1348,12 +1329,6 @@
 
     window.addEventListener("beforeunload", () => {
       clearOutput();
-
-      // Browsers do not await async beforeunload handlers, so terminate the
-      // OCR worker as a best-effort fire-and-forget call.
-      if (state.ocrWorker && typeof state.ocrWorker.terminate === "function") {
-        state.ocrWorker.terminate().catch((error) => console.debug("OCR worker termination failed.", error));
-      }
     });
   }
 
