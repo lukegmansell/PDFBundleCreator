@@ -360,6 +360,7 @@
     const page = await pdfProxy.getPage(pageNumber);
     const textContent = await page.getTextContent();
     const hasText = textContent.items.some((item) => String(item.str || "").trim().length > 0);
+    page.cleanup();
     documentRecord.textLayerCache.set(cacheKey, hasText);
     return hasText;
   }
@@ -592,6 +593,8 @@
         viewport,
       }).promise;
 
+      page.cleanup();
+
       if (requestToken !== state.reviewRenderToken) {
         return;
       }
@@ -696,6 +699,9 @@
     setStatus("idle", "Queue updated. Review the new order before exporting.");
   }
 
+  const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024;
+  const MAX_TOTAL_SIZE_BYTES = 500 * 1024 * 1024;
+
   async function addFiles(fileList) {
     const files = Array.from(fileList).filter(isPdfLike);
 
@@ -710,6 +716,7 @@
     const existingKeys = new Set(state.documents.map((documentRecord) => documentRecord.key));
     const addedDocuments = [];
     const failures = [];
+    let newQueuedBytes = state.documents.reduce((sum, documentRecord) => sum + documentRecord.size, 0);
 
     for (const file of files) {
       const key = `${file.name}-${file.size}-${file.lastModified}`;
@@ -718,10 +725,21 @@
         continue;
       }
 
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        failures.push(`${file.name} is too large (${formatBytes(file.size)}; limit is ${formatBytes(MAX_FILE_SIZE_BYTES)} per file).`);
+        continue;
+      }
+
+      if (newQueuedBytes + file.size > MAX_TOTAL_SIZE_BYTES) {
+        failures.push(`${file.name} would exceed the ${formatBytes(MAX_TOTAL_SIZE_BYTES)} total queue limit.`);
+        continue;
+      }
+
       try {
         const documentRecord = await buildDocumentRecord(file);
         addedDocuments.push(documentRecord);
         existingKeys.add(key);
+        newQueuedBytes += file.size;
       } catch (error) {
         failures.push(error instanceof Error ? error.message : String(error));
       }
@@ -831,6 +849,7 @@
       size: 28,
       font: titleFont,
       color: window.PDFLib.rgb(0.11, 0.11, 0.1),
+      maxWidth: width - 96,
     });
 
     page.drawText(state.cover.subtitle, {
@@ -933,16 +952,16 @@
     const { bodyFont, bodyBoldFont } = coverFonts;
     const pageSize = [INDEX_PAGE_WIDTH, INDEX_PAGE_HEIGHT];
     const entriesPerPage = getIndexEntriesPerPage();
-    let firstPage = null;
+    const totalIndexPages = Math.max(1, Math.ceil(indexEntries.length / entriesPerPage));
+    const pages = [];
 
-    for (let startIndex = 0; startIndex < indexEntries.length || startIndex === 0; startIndex += entriesPerPage) {
+    for (let pageNum = 0; pageNum < totalIndexPages; pageNum++) {
+      const startIndex = pageNum * entriesPerPage;
       const page = pdfDoc.addPage(pageSize);
       const { width, height } = page.getSize();
       let y = height - INDEX_START_Y_OFFSET;
 
-      if (!firstPage) {
-        firstPage = page;
-      }
+      pages.push(page);
 
       page.drawText("DOCUMENT INDEX", {
         x: 48,
@@ -980,7 +999,7 @@
         });
     }
 
-    return firstPage;
+    return pages;
   }
 
   async function ensureOcrWorker() {
@@ -1058,6 +1077,9 @@
       const height = Math.max(6, Math.abs(yHigh - yLow));
       const fontSize = Math.max(6, height * 0.85);
 
+      // pdf-lib does not expose PDF text rendering modes (e.g. invisible text).
+      // Using near-zero opacity keeps text invisible on-screen while still
+      // making it selectable and searchable in supporting PDF viewers.
       pdfPage.drawText(text, {
         x,
         y: yLow + height * 0.08,
@@ -1109,12 +1131,14 @@
       }
 
       if (state.pagination.includeIndexPage) {
-        const indexPage = renderIndexPage(mergedPdf, { titleFont, bodyFont, bodyBoldFont }, indexEntries);
+        const indexPages = renderIndexPage(mergedPdf, { titleFont, bodyFont, bodyBoldFont }, indexEntries);
         addLog("Added document index page.");
 
         if (state.pagination.applyPagination) {
-          renderPageNumber(indexPage, nextPageNumber, bodyFont);
-          nextPageNumber += 1;
+          indexPages.forEach((indexPage) => {
+            renderPageNumber(indexPage, nextPageNumber, bodyFont);
+            nextPageNumber += 1;
+          });
         }
       }
 
@@ -1128,6 +1152,10 @@
         const sourcePdf = await PDFDocument.load(documentRecord.bytes.slice(), {
           ignoreEncryption: true,
         });
+
+        if (sourcePdf.isEncrypted) {
+          addLog(`Warning: ${documentRecord.name} is encrypted. The merged output may be incomplete or unreadable for this document.`);
+        }
 
         const copiedPages = await mergedPdf.copyPages(sourcePdf, sourcePdf.getPageIndices());
         const pdfProxy = await getPdfProxy(documentRecord);
@@ -1164,6 +1192,8 @@
               state.currentOcrLabel = "";
               ocrAppliedPages += 1;
             }
+
+            sourcePage.cleanup();
           }
         }
       }
@@ -1314,15 +1344,13 @@
       });
     });
 
-    window.addEventListener("beforeunload", async () => {
+    window.addEventListener("beforeunload", () => {
       clearOutput();
 
+      // Browsers do not await async beforeunload handlers, so terminate the
+      // OCR worker as a best-effort fire-and-forget call.
       if (state.ocrWorker && typeof state.ocrWorker.terminate === "function") {
-        try {
-          await state.ocrWorker.terminate();
-        } catch (error) {
-          console.warn("Could not terminate OCR worker.", error);
-        }
+        state.ocrWorker.terminate().catch(() => {});
       }
     });
   }
