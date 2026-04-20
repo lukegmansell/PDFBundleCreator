@@ -1091,7 +1091,7 @@
         addLog(`Merging ${documentRecord.name}.`);
         const indexEntry = indexEntries[docIndex];
         if (indexEntry) {
-          addLog(`Bookmark: ${indexEntry.name} starts on page ${indexEntry.startPage}.`);
+          addLog(`Index: ${indexEntry.name} starts on page ${indexEntry.startPage}.`);
         }
 
         const sourcePdf = await PDFDocument.load(documentRecord.bytes.slice(), {
