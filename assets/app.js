@@ -103,6 +103,7 @@
     workerPath: new URL("./runtime/tesseract/worker.min.js", window.location.href).toString(),
     corePath: new URL("./runtime/tesseract-core/", window.location.href).toString(),
     langPath: new URL("./runtime/tessdata/", window.location.href).toString(),
+    workerBlobURL: false,
   };
 
   if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
@@ -1016,6 +1017,7 @@
         workerPath: ocrRuntime.workerPath,
         corePath: ocrRuntime.corePath,
         langPath: ocrRuntime.langPath,
+        workerBlobURL: ocrRuntime.workerBlobURL,
         logger: (message) => {
           if (!state.busy || !state.currentOcrLabel) {
             return;
