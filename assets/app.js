@@ -1021,14 +1021,49 @@
     return { canvas, viewport };
   }
 
-  function addInvisibleTextLayer(pdfPage, viewport, ocrData, bodyFont) {
-    const textItems = Array.isArray(ocrData.lines) && ocrData.lines.length > 0 ? ocrData.lines : ocrData.words || [];
-    const hasRenderingModeSupport =
-      typeof window.PDFLib.setTextRenderingMode === "function" && typeof pdfPage.pushOperators === "function";
+  function parseTsvWords(tsv) {
+    if (!tsv) {
+      return [];
+    }
+    const rows = tsv.trim().split("\n");
+    const items = [];
+    // Skip header row; TSV columns (12 total):
+    // level  page_num  block_num  par_num  line_num  word_num  left  top  width  height  conf  text
+    for (let i = 1; i < rows.length; i += 1) {
+      const cols = rows[i].split("\t");
+      if (cols.length < 12) {
+        continue;
+      }
+      const level = parseInt(cols[0], 10);
+      if (level !== 5) {
+        // Level 5 = word
+        continue;
+      }
+      const left = parseInt(cols[6], 10);
+      const top = parseInt(cols[7], 10);
+      const width = parseInt(cols[8], 10);
+      const height = parseInt(cols[9], 10);
+      const conf = parseFloat(cols[10]);
+      const text = cols.slice(11).join("\t").trim();
+      if (!text || conf <= 0 || !Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) {
+        continue;
+      }
+      items.push({
+        text,
+        bbox: { x0: left, y0: top, x1: left + width, y1: top + height },
+      });
+    }
+    return items;
+  }
+
+  function addInvisibleTextLayer(pdfPage, viewport, textItems, bodyFont) {
+    if (!Array.isArray(textItems) || textItems.length === 0) {
+      return;
+    }
 
     const drawTextItem = (item) => {
       const text = String(item.text || "").replace(/\s+/g, " ").trim();
-      const bbox = item.bbox || item;
+      const bbox = item.bbox;
 
       if (!text || !bbox) {
         return;
@@ -1049,32 +1084,24 @@
       const height = Math.max(6, Math.abs(yHigh - yLow));
       const fontSize = Math.max(6, height * 0.85);
 
-      pdfPage.drawText(text, {
-        x,
-        y: yLow + height * 0.08,
-        size: fontSize,
-        font: bodyFont,
-        maxWidth: width,
-        color: hasRenderingModeSupport ? window.PDFLib.rgb(0, 0, 0) : window.PDFLib.rgb(1, 1, 1),
-        opacity: hasRenderingModeSupport ? 1 : 0.01,
-      });
+      try {
+        pdfPage.drawText(text, {
+          x,
+          y: yLow + height * 0.08,
+          size: fontSize,
+          font: bodyFont,
+          maxWidth: width,
+          color: window.PDFLib.rgb(0, 0, 0),
+          // Near-zero opacity keeps the text invisible to viewers while
+          // preserving it in the PDF content stream for search and copy-paste.
+          opacity: 0.0001,
+        });
+      } catch (_err) {
+        // Skip words that cannot be encoded in the standard font
+      }
     };
 
-    if (!hasRenderingModeSupport) {
-      textItems.forEach(drawTextItem);
-      return;
-    }
-
-    // Render mode 3 = invisible text. This keeps OCR text searchable
-    // without relying on near-transparent fill opacity, which many
-    // viewers ignore for indexing/search.
-    pdfPage.pushOperators(window.PDFLib.setTextRenderingMode(3));
-    try {
-      textItems.forEach(drawTextItem);
-    } finally {
-      // Reset render mode for any later visible text additions.
-      pdfPage.pushOperators(window.PDFLib.setTextRenderingMode(0));
-    }
+    textItems.forEach(drawTextItem);
   }
 
   async function buildBundle() {
@@ -1168,7 +1195,10 @@
               addLog(`Running OCR on ${documentRecord.name}, page ${pageIndex + 1}.`);
 
               const { canvas, viewport } = await renderPageForOcr(sourcePage);
-              const recognition = await window.Tesseract.recognize(canvas, "eng", {
+
+              // Use the worker API directly so we can request TSV output, which
+              // provides word-level bounding boxes needed for the text overlay.
+              const ocrWorker = await window.Tesseract.createWorker("eng", 1, {
                 workerPath: ocrRuntime.workerPath,
                 corePath: ocrRuntime.corePath,
                 langPath: ocrRuntime.langPath,
@@ -1185,7 +1215,14 @@
                   setStatus("processing", `${state.currentOcrLabel}. ${status}${progress}`);
                 },
               });
-              addInvisibleTextLayer(outputPage, viewport, recognition.data, bodyFont);
+
+              try {
+                const recognition = await ocrWorker.recognize(canvas, {}, { tsv: true });
+                const words = parseTsvWords(recognition.data.tsv);
+                addInvisibleTextLayer(outputPage, viewport, words, bodyFont);
+              } finally {
+                await ocrWorker.terminate();
+              }
 
               canvas.width = 0;
               canvas.height = 0;
