@@ -1062,8 +1062,8 @@
         size: fontSize,
         font: bodyFont,
         maxWidth: width,
-        color: window.PDFLib.rgb(0, 0, 0),
-        opacity: 1,
+        color: hasRenderingModeSupport ? window.PDFLib.rgb(0, 0, 0) : window.PDFLib.rgb(1, 1, 1),
+        opacity: hasRenderingModeSupport ? 1 : 0.01,
       });
 
       if (hasRenderingModeSupport) {
