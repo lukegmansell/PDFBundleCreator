@@ -14,16 +14,16 @@
     statusTone: "idle",
     statusText: initialStatus,
     cover: {
-      title: "",
-      subtitle: "",
-      reference: "",
-      preparedBy: "",
-      note: "",
+      title: "Case File Bundle",
+      subtitle: "Prepared for case review",
+      reference: "REF-001",
+      preparedBy: "Coroner's Office",
+      note: "Merged locally. OCR uses the bundled English language file.",
       includeCover: true,
     },
     pagination: {
       applyPagination: true,
-      prefix: "",
+      prefix: "B-",
       startNumber: 1,
       position: "bottom-right",
       ocrMode: "auto",
@@ -39,7 +39,6 @@
     },
     currentOcrLabel: "",
     reviewRenderToken: 0,
-    dragDocumentId: null,
   };
 
   const elements = {
@@ -61,7 +60,6 @@
     summaryOcr: document.getElementById("summaryOcr"),
     reviewList: document.getElementById("reviewList"),
     reviewDocName: document.getElementById("reviewDocName"),
-    reviewBundlePosition: document.getElementById("reviewBundlePosition"),
     reviewDocPages: document.getElementById("reviewDocPages"),
     reviewHeaderStatus: document.getElementById("reviewHeaderStatus"),
     reviewTextLayerStatus: document.getElementById("reviewTextLayerStatus"),
@@ -194,21 +192,18 @@
     return state.documents.find((documentRecord) => documentRecord.id === state.selectedDocumentId) || null;
   }
 
-  function getSelectedDocumentIndex() {
-    return state.documents.findIndex((documentRecord) => documentRecord.id === state.selectedDocumentId);
-  }
-
   function normalizeFilename(filename) {
     const trimmed = (filename || "").trim() || "bundle-builder";
     return trimmed.toLowerCase().endsWith(".pdf") ? trimmed : `${trimmed}.pdf`;
   }
 
   function syncCoverFromInputs() {
-    state.cover.title = elements.coverTitle.value.trim();
-    state.cover.subtitle = elements.coverSubtitle.value.trim();
-    state.cover.reference = elements.coverReference.value.trim();
-    state.cover.preparedBy = elements.coverPreparedBy.value.trim();
-    state.cover.note = elements.coverNote.value.trim();
+    state.cover.title = elements.coverTitle.value.trim() || "Case File Bundle";
+    state.cover.subtitle = elements.coverSubtitle.value.trim() || "Prepared for case review";
+    state.cover.reference = elements.coverReference.value.trim() || "REF-001";
+    state.cover.preparedBy = elements.coverPreparedBy.value.trim() || "Coroner's Office";
+    state.cover.note =
+      elements.coverNote.value.trim() || "Merged locally. OCR uses the bundled English language file.";
     state.cover.includeCover = elements.includeCover.checked;
   }
 
@@ -263,7 +258,6 @@
     )} queued`;
     elements.coverPreviewPageCount.textContent = `${formatCount(totalPages, "page", "pages")}`;
     elements.coverPreviewNote.textContent = state.cover.note;
-    elements.coverPreviewNote.hidden = !state.cover.note;
   }
 
   function setTheme(theme) {
@@ -435,7 +429,7 @@
         documentRecord.pageCount,
         "page",
         "pages",
-      )} | ${formatBytes(documentRecord.size)} | Added ${formatDate(documentRecord.lastModified)}`;
+      )} • ${formatBytes(documentRecord.size)} • Added ${formatDate(documentRecord.lastModified)}`;
 
       mainButton.appendChild(title);
       mainButton.appendChild(meta);
@@ -475,7 +469,6 @@
   }
 
   function renderReviewList() {
-    state.dragDocumentId = null;
     elements.reviewList.textContent = "";
 
     if (state.documents.length === 0) {
@@ -489,59 +482,6 @@
     state.documents.forEach((documentRecord, index) => {
       const item = document.createElement("li");
       item.className = `review-item${documentRecord.id === state.selectedDocumentId ? " is-selected" : ""}`;
-      item.draggable = !state.busy;
-      item.dataset.documentId = documentRecord.id;
-
-      item.addEventListener("dragstart", (event) => {
-        if (state.busy) {
-          event.preventDefault();
-          return;
-        }
-
-        state.dragDocumentId = documentRecord.id;
-        item.classList.add("is-dragging");
-
-        if (event.dataTransfer) {
-          event.dataTransfer.effectAllowed = "move";
-          event.dataTransfer.setData("text/plain", documentRecord.id);
-        }
-      });
-
-      item.addEventListener("dragover", (event) => {
-        if (!state.dragDocumentId || state.dragDocumentId === documentRecord.id) {
-          return;
-        }
-
-        event.preventDefault();
-        item.classList.add("is-drop-target");
-
-        if (event.dataTransfer) {
-          event.dataTransfer.dropEffect = "move";
-        }
-      });
-
-      item.addEventListener("dragleave", () => {
-        item.classList.remove("is-drop-target");
-      });
-
-      item.addEventListener("drop", (event) => {
-        event.preventDefault();
-
-        const draggedDocumentId = state.dragDocumentId;
-        const fromIndex = state.documents.findIndex((record) => record.id === state.dragDocumentId);
-        const toIndex = state.documents.findIndex((record) => record.id === documentRecord.id);
-
-        if (draggedDocumentId) {
-          state.selectedDocumentId = draggedDocumentId;
-        }
-
-        clearReviewDragState();
-        reorderDocuments(fromIndex, toIndex);
-      });
-
-      item.addEventListener("dragend", () => {
-        clearReviewDragState();
-      });
 
       const button = document.createElement("button");
       button.type = "button";
@@ -562,18 +502,11 @@
         documentRecord.pageCount,
         "page",
         "pages",
-      )} | ${formatBytes(documentRecord.size)}`;
+      )} • ${formatBytes(documentRecord.size)}`;
 
       button.appendChild(title);
       button.appendChild(meta);
       item.appendChild(button);
-
-      const handle = document.createElement("span");
-      handle.className = "review-drag-handle";
-      handle.textContent = "Drag";
-      handle.setAttribute("aria-hidden", "true");
-
-      item.appendChild(handle);
       elements.reviewList.appendChild(item);
     });
   }
@@ -603,38 +536,6 @@
     }
   }
 
-  function clearReviewDragState() {
-    state.dragDocumentId = null;
-    elements.reviewList
-      .querySelectorAll(".review-item.is-dragging, .review-item.is-drop-target")
-      .forEach((item) => item.classList.remove("is-dragging", "is-drop-target"));
-  }
-
-  function reorderDocuments(fromIndex, toIndex, statusText = "Queue updated. Review the new order before exporting.") {
-    if (state.busy || fromIndex === toIndex) {
-      return false;
-    }
-
-    if (
-      fromIndex < 0 ||
-      fromIndex >= state.documents.length ||
-      toIndex < 0 ||
-      toIndex >= state.documents.length
-    ) {
-      return false;
-    }
-
-    const [documentRecord] = state.documents.splice(fromIndex, 1);
-    state.documents.splice(toIndex, 0, documentRecord);
-    clearOutput();
-    updateSummary();
-    renderQueueList();
-    renderReviewList();
-    renderReviewPage();
-    setStatus("idle", statusText);
-    return true;
-  }
-
   function renderReviewToolbar() {
     const documentRecord = getSelectedDocument();
     const maxPages = documentRecord ? documentRecord.pageCount : 0;
@@ -654,9 +555,8 @@
 
     if (!documentRecord) {
       elements.reviewDocName.textContent = "No document selected";
-      elements.reviewBundlePosition.textContent = "0 of 0";
       elements.reviewDocPages.textContent = "0";
-      elements.reviewHeaderStatus.textContent = "Header check pending";
+      elements.reviewHeaderStatus.textContent = "Pending";
       elements.reviewTextLayerStatus.textContent = "Select a page";
       elements.reviewCanvas.hidden = true;
       elements.reviewEmptyState.hidden = false;
@@ -668,7 +568,6 @@
     renderReviewToolbar();
 
     elements.reviewDocName.textContent = documentRecord.name;
-    elements.reviewBundlePosition.textContent = `${getSelectedDocumentIndex() + 1} of ${state.documents.length}`;
     elements.reviewDocPages.textContent = String(documentRecord.pageCount);
     elements.reviewHeaderStatus.textContent = documentRecord.headerValid ? "PDF header confirmed" : "Header check failed";
     elements.reviewTextLayerStatus.textContent = "Checking selected page...";
@@ -682,8 +581,8 @@
 
       const page = await pdfProxy.getPage(state.reviewPage);
       const baseViewport = page.getViewport({ scale: 1 });
-      const availableWidth = Math.max(elements.reviewCanvasWrap.clientWidth - 96, 320);
-      const scale = Math.min(2.1, Math.max(0.95, availableWidth / baseViewport.width));
+      const availableWidth = Math.max(elements.reviewCanvasWrap.clientWidth - 32, 280);
+      const scale = Math.min(1.7, Math.max(0.85, availableWidth / baseViewport.width));
       const viewport = page.getViewport({ scale });
 
       const canvas = elements.reviewCanvas;
@@ -739,7 +638,6 @@
 
   async function clearQueue() {
     const toDispose = state.documents.slice();
-    clearReviewDragState();
     state.documents = [];
     state.selectedDocumentId = null;
     state.reviewPage = 1;
@@ -762,7 +660,6 @@
       return;
     }
 
-    clearReviewDragState();
     const [removedDocument] = state.documents.splice(index, 1);
     await destroyPdfProxy(removedDocument);
 
@@ -791,7 +688,17 @@
     }
 
     const nextIndex = index + delta;
-    reorderDocuments(index, nextIndex);
+
+    if (nextIndex < 0 || nextIndex >= state.documents.length) {
+      return;
+    }
+
+    const [documentRecord] = state.documents.splice(index, 1);
+    state.documents.splice(nextIndex, 0, documentRecord);
+    clearOutput();
+    renderQueueList();
+    renderReviewList();
+    setStatus("idle", "Queue updated. Review the new order before exporting.");
   }
 
   const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024;
@@ -923,27 +830,38 @@
     const { titleFont, bodyFont, bodyBoldFont } = coverFonts;
     const totalPages = getTotalPages();
 
-    if (state.cover.title) {
-      page.drawText(state.cover.title, {
-        x: 48,
-        y: height - 128,
-        size: 28,
-        font: titleFont,
-        color: window.PDFLib.rgb(0.11, 0.11, 0.1),
-        maxWidth: width - 96,
-      });
-    }
+    page.drawLine({
+      start: { x: 48, y: height - 64 },
+      end: { x: 76, y: height - 64 },
+      thickness: 2,
+      color: window.PDFLib.rgb(0.43, 0.45, 0.49),
+    });
 
-    if (state.cover.subtitle) {
-      page.drawText(state.cover.subtitle, {
-        x: 48,
-        y: height - 158,
-        size: 14,
-        font: bodyFont,
-        color: window.PDFLib.rgb(0.42, 0.43, 0.45),
-        maxWidth: width - 96,
-      });
-    }
+    page.drawText("CORONER'S OFFICE TOOLING", {
+      x: 88,
+      y: height - 70,
+      size: 11,
+      font: bodyBoldFont,
+      color: window.PDFLib.rgb(0.43, 0.45, 0.49),
+    });
+
+    page.drawText(state.cover.title, {
+      x: 48,
+      y: height - 128,
+      size: 28,
+      font: titleFont,
+      color: window.PDFLib.rgb(0.11, 0.11, 0.1),
+      maxWidth: width - 96,
+    });
+
+    page.drawText(state.cover.subtitle, {
+      x: 48,
+      y: height - 158,
+      size: 14,
+      font: bodyFont,
+      color: window.PDFLib.rgb(0.42, 0.43, 0.45),
+      maxWidth: width - 96,
+    });
 
     const metaRows = [
       ["Reference", state.cover.reference],
@@ -975,24 +893,22 @@
       y -= 58;
     });
 
-    if (state.cover.note) {
-      page.drawLine({
-        start: { x: 48, y: 182 },
-        end: { x: width - 48, y: 182 },
-        thickness: 1,
-        color: window.PDFLib.rgb(0.89, 0.89, 0.86),
-      });
+    page.drawLine({
+      start: { x: 48, y: 182 },
+      end: { x: width - 48, y: 182 },
+      thickness: 1,
+      color: window.PDFLib.rgb(0.89, 0.89, 0.86),
+    });
 
-      page.drawText(state.cover.note, {
-        x: 48,
-        y: 142,
-        size: 12,
-        font: bodyFont,
-        color: window.PDFLib.rgb(0.42, 0.43, 0.45),
-        lineHeight: 16,
-        maxWidth: width - 96,
-      });
-    }
+    page.drawText(state.cover.note, {
+      x: 48,
+      y: 142,
+      size: 12,
+      font: bodyFont,
+      color: window.PDFLib.rgb(0.42, 0.43, 0.45),
+      lineHeight: 16,
+      maxWidth: width - 96,
+    });
 
     return page;
   }
@@ -1026,7 +942,6 @@
 
     return state.documents.map((documentRecord) => {
       const entry = {
-        documentId: documentRecord.id,
         name: documentRecord.name,
         startPage: nextPage,
       };
@@ -1041,7 +956,6 @@
     const entriesPerPage = getIndexEntriesPerPage();
     const totalIndexPages = Math.max(1, Math.ceil(indexEntries.length / entriesPerPage));
     const pages = [];
-    const linkTargets = [];
 
     for (let pageNum = 0; pageNum < totalIndexPages; pageNum++) {
       const startIndex = pageNum * entriesPerPage;
@@ -1083,51 +997,11 @@
             color: window.PDFLib.rgb(0.42, 0.43, 0.45),
           });
 
-          linkTargets.push({
-            indexPage: page,
-            documentId: entry.documentId,
-            rect: {
-              x: 46,
-              y: y - 4,
-              width: width - 92,
-              height: 16,
-            },
-          });
-
           y -= INDEX_ROW_HEIGHT;
         });
     }
 
-    return { pages, linkTargets };
-  }
-
-  function addIndexLinkAnnotation(pdfDoc, indexPage, rect, destinationPageRef) {
-    if (!destinationPageRef) {
-      return;
-    }
-
-    const { PDFName } = window.PDFLib;
-    const linkAnnotation = pdfDoc.context.obj({
-      Type: "Annot",
-      Subtype: "Link",
-      Rect: [rect.x, rect.y, rect.x + rect.width, rect.y + rect.height],
-      Border: [0, 0, 0],
-      Dest: [destinationPageRef, PDFName.of("Fit")],
-    });
-
-    const linkAnnotationRef = pdfDoc.context.register(linkAnnotation);
-    indexPage.node.addAnnot(linkAnnotationRef);
-  }
-
-  function addIndexLinks(pdfDoc, indexLinkTargets, firstPageRefsByDocumentId) {
-    indexLinkTargets.forEach((linkTarget) => {
-      addIndexLinkAnnotation(
-        pdfDoc,
-        linkTarget.indexPage,
-        linkTarget.rect,
-        firstPageRefsByDocumentId.get(linkTarget.documentId),
-      );
-    });
+    return pages;
   }
 
   async function renderPageForOcr(page) {
@@ -1252,8 +1126,6 @@
       const bodyFont = await mergedPdf.embedFont(StandardFonts.Helvetica);
       const bodyBoldFont = await mergedPdf.embedFont(StandardFonts.HelveticaBold);
       const indexEntries = buildIndexEntries();
-      const firstPageRefsByDocumentId = new Map();
-      let indexPageArtifacts = null;
 
       let nextPageNumber = state.pagination.startNumber;
       let ocrAppliedPages = 0;
@@ -1271,11 +1143,11 @@
       }
 
       if (state.pagination.includeIndexPage) {
-        indexPageArtifacts = renderIndexPage(mergedPdf, { titleFont, bodyFont, bodyBoldFont }, indexEntries);
+        const indexPages = renderIndexPage(mergedPdf, { titleFont, bodyFont, bodyBoldFont }, indexEntries);
         addLog("Added document index page.");
 
         if (state.pagination.applyPagination) {
-          indexPageArtifacts.pages.forEach((indexPage) => {
+          indexPages.forEach((indexPage) => {
             renderPageNumber(indexPage, nextPageNumber, bodyFont);
             nextPageNumber += 1;
           });
@@ -1305,9 +1177,6 @@
           setStatus("processing", `Processing page ${processedPages} of ${totalPages}.`);
 
           const outputPage = mergedPdf.addPage(copiedPages[pageIndex]);
-          if (pageIndex === 0) {
-            firstPageRefsByDocumentId.set(documentRecord.id, outputPage.ref);
-          }
 
           if (state.pagination.applyPagination) {
             renderPageNumber(outputPage, nextPageNumber, bodyFont);
@@ -1364,10 +1233,6 @@
             sourcePage.cleanup();
           }
         }
-      }
-
-      if (indexPageArtifacts) {
-        addIndexLinks(mergedPdf, indexPageArtifacts.linkTargets, firstPageRefsByDocumentId);
       }
 
       const mergedBytes = await mergedPdf.save();
