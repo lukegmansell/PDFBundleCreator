@@ -1026,7 +1026,7 @@
     const hasRenderingModeSupport =
       typeof window.PDFLib.setTextRenderingMode === "function" && typeof pdfPage.pushOperators === "function";
 
-    textItems.forEach((item) => {
+    const drawTextItem = (item) => {
       const text = String(item.text || "").replace(/\s+/g, " ").trim();
       const bbox = item.bbox || item;
 
@@ -1049,13 +1049,6 @@
       const height = Math.max(6, Math.abs(yHigh - yLow));
       const fontSize = Math.max(6, height * 0.85);
 
-      if (hasRenderingModeSupport) {
-        // Render mode 3 = invisible text. This keeps OCR text searchable
-        // without relying on near-transparent fill opacity, which many
-        // viewers ignore for indexing/search.
-        pdfPage.pushOperators(window.PDFLib.setTextRenderingMode(3));
-      }
-
       pdfPage.drawText(text, {
         x,
         y: yLow + height * 0.08,
@@ -1065,12 +1058,23 @@
         color: hasRenderingModeSupport ? window.PDFLib.rgb(0, 0, 0) : window.PDFLib.rgb(1, 1, 1),
         opacity: hasRenderingModeSupport ? 1 : 0.01,
       });
+    };
 
-      if (hasRenderingModeSupport) {
-        // Reset render mode for any later visible text additions.
-        pdfPage.pushOperators(window.PDFLib.setTextRenderingMode(0));
-      }
-    });
+    if (!hasRenderingModeSupport) {
+      textItems.forEach(drawTextItem);
+      return;
+    }
+
+    // Render mode 3 = invisible text. This keeps OCR text searchable
+    // without relying on near-transparent fill opacity, which many
+    // viewers ignore for indexing/search.
+    pdfPage.pushOperators(window.PDFLib.setTextRenderingMode(3));
+    try {
+      textItems.forEach(drawTextItem);
+    } finally {
+      // Reset render mode for any later visible text additions.
+      pdfPage.pushOperators(window.PDFLib.setTextRenderingMode(0));
+    }
   }
 
   async function buildBundle() {
