@@ -1,4 +1,4 @@
-# Bundle Builder
+# Bundle Builder (PDF-BBB)
 
 Bundle Builder is a browser-based tool for merging multiple PDF files into a single, paginated bundle. It runs entirely in the browser — no server, no installation, and no internet connection required. All processing happens locally on your machine.
 
@@ -7,8 +7,8 @@ The app is aimed at users who need to combine several PDFs into a single documen
 ## What it does
 
 - **Merges PDFs** — queue multiple PDF files and combine them into one output document in the order you choose.
-- **Generates a cover page** — automatically creates a first page with a title, subtitle, reference number, and other editable fields.
-- **Stamps page numbers** — adds page labels (e.g. `B-1`, `B-2`) at a configurable position on each page.
+- **Generates a cover page** — optionally creates a first page with editable title, subtitle, reference, prepared-by, and notes fields.
+- **Stamps page numbers** — optionally adds page labels (e.g. `B-1`, `B-2`) at a configurable position on each page.
 - **Runs OCR** — uses a bundled English language model to add a hidden, searchable text layer to scanned pages that don't already have one.
 - **Produces an index page** — optionally adds a page listing each source document and its starting page number.
 
@@ -20,8 +20,8 @@ The workflow is split into four tabs:
 
 1. **Build Bundle** — add PDF files by dropping them onto the page or using the file picker, then arrange them in the desired order.
 2. **Review Bundle** — preview any page from any queued document and see whether it already has a selectable text layer.
-3. **Cover Page** — edit the generated cover page fields (title, subtitle, reference, notes) and see a live preview.
-4. **Pagination** — set the page label prefix, start number, and position; choose the OCR mode; then build and download the merged PDF.
+3. **Cover Page** — edit the generated cover page fields (title, subtitle, reference, prepared by, notes) and see a live preview.
+4. **Pagination** — set the page label prefix, start number, and position; choose OCR mode; enable/disable index page output; set the output filename; then build and download the merged PDF.
 
 ## Folder contents
 
