@@ -149,50 +149,67 @@
               <div class="panel-header">
                 <div>
                   <p class="panel-kicker">Review</p>
-                  <h2>Preview source pages</h2>
+                  <h2>Live bundle review</h2>
                   <p class="panel-copy">
-                    Review one document at a time. The app checks whether the selected page already contains selectable text.
+                    Keep the bundle order in view, drag documents into place, and inspect the selected page as you work.
                   </p>
                 </div>
               </div>
 
               <div class="review-layout">
-                <div class="stack">
+                <aside class="review-sidebar">
+                  <div class="review-sidebar-header">
+                    <p class="panel-kicker">Bundle order</p>
+                    <h3>Drag to reorder</h3>
+                    <p class="panel-copy">
+                      The list reflects the current export order. Drag any document to move it, then click to preview it.
+                    </p>
+                  </div>
+
                   <ul class="document-list" id="reviewList">
                     <li class="empty-state">Add PDFs in Build Bundle before opening review.</li>
                   </ul>
-                </div>
+                </aside>
 
-                <div class="stack">
+                <div class="review-stage">
                   <div class="review-meta-grid">
-                    <dl class="review-meta-card">
-                      <dt>Document</dt>
-                      <dd id="reviewDocName">No document selected</dd>
-                    </dl>
-                    <dl class="review-meta-card">
-                      <dt>Pages</dt>
-                      <dd id="reviewDocPages">0</dd>
-                    </dl>
-                    <dl class="review-meta-card">
-                      <dt>Header check</dt>
-                      <dd id="reviewHeaderStatus">Pending</dd>
-                    </dl>
-                    <dl class="review-meta-card">
-                      <dt>Text layer</dt>
-                      <dd id="reviewTextLayerStatus">Select a page</dd>
-                    </dl>
+                    <article class="review-meta-card review-meta-card-wide">
+                      <span class="review-meta-label">Document</span>
+                      <strong id="reviewDocName">No document selected</strong>
+                      <p class="review-meta-note" id="reviewHeaderStatus">Header check pending</p>
+                    </article>
+                    <article class="review-meta-card">
+                      <span class="review-meta-label">Bundle order</span>
+                      <strong id="reviewBundlePosition">0 of 0</strong>
+                    </article>
+                    <article class="review-meta-card">
+                      <span class="review-meta-label">Pages</span>
+                      <strong id="reviewDocPages">0</strong>
+                    </article>
+                    <article class="review-meta-card">
+                      <span class="review-meta-label">Text layer</span>
+                      <strong id="reviewTextLayerStatus">Select a page</strong>
+                    </article>
                   </div>
 
-                  <div class="preview-shell">
-                    <div class="preview-toolbar">
-                      <div class="button-row">
-                        <button class="button button-secondary" id="reviewPrevPageButton" type="button">← Prev page</button>
-                        <button class="button button-secondary" id="reviewNextPageButton" type="button">Next page →</button>
+                  <div class="preview-shell review-preview-shell">
+                    <div class="preview-toolbar review-preview-toolbar">
+                      <div class="review-preview-copy">
+                        <p class="panel-kicker">Preview</p>
+                        <h3>Selected page</h3>
+                        <p class="panel-copy">The preview refreshes as soon as you change page, switch documents, or reorder the bundle.</p>
                       </div>
-                      <div class="page-indicator" id="reviewPageIndicator">Page 0 of 0</div>
+
+                      <div class="review-toolbar-actions">
+                        <div class="button-row">
+                          <button class="button button-secondary" id="reviewPrevPageButton" type="button">Prev page</button>
+                          <button class="button button-secondary" id="reviewNextPageButton" type="button">Next page</button>
+                        </div>
+                        <div class="page-indicator" id="reviewPageIndicator">Page 0 of 0</div>
+                      </div>
                     </div>
 
-                    <div class="canvas-wrap" id="reviewCanvasWrap">
+                    <div class="canvas-wrap review-canvas-stage" id="reviewCanvasWrap">
                       <div class="empty-state" id="reviewEmptyState">
                         Select a document from the list to preview a page.
                       </div>
@@ -221,28 +238,28 @@
               <div class="field-grid">
                 <div class="field">
                   <label for="coverTitle">Title</label>
-                  <input id="coverTitle" type="text" value="Case File Bundle" />
+                  <input id="coverTitle" type="text" value="" />
                 </div>
 
                 <div class="field">
                   <label for="coverSubtitle">Subtitle</label>
-                  <input id="coverSubtitle" type="text" value="Prepared for case review" />
+                  <input id="coverSubtitle" type="text" value="" />
                 </div>
 
                 <div class="split-row">
                   <div class="field">
                     <label for="coverReference">Reference</label>
-                    <input id="coverReference" type="text" value="REF-001" />
+                    <input id="coverReference" type="text" value="" />
                   </div>
                   <div class="field">
                     <label for="coverPreparedBy">Prepared by</label>
-                    <input id="coverPreparedBy" type="text" value="Coroner's Office" />
+                    <input id="coverPreparedBy" type="text" value="" />
                   </div>
                 </div>
 
                 <div class="field">
                   <label for="coverNote">Cover note</label>
-                  <textarea id="coverNote">Merged locally. OCR uses the bundled English language file.</textarea>
+                  <textarea id="coverNote"></textarea>
                 </div>
 
                 <label class="checkbox-row">
@@ -264,18 +281,17 @@
               </div>
 
               <div class="cover-sheet">
-                <div class="eyebrow"><span class="brand-line" aria-hidden="true"></span>Coroner's Office Tooling</div>
-                <h3 id="coverPreviewTitle">Case File Bundle</h3>
-                <p class="cover-subtitle" id="coverPreviewSubtitle">Prepared for case review</p>
+                <h3 id="coverPreviewTitle"></h3>
+                <p class="cover-subtitle" id="coverPreviewSubtitle"></p>
 
                 <dl class="cover-meta">
                   <div>
                     <dt>Reference</dt>
-                    <dd id="coverPreviewReference">REF-001</dd>
+                    <dd id="coverPreviewReference"></dd>
                   </div>
                   <div>
                     <dt>Prepared by</dt>
-                    <dd id="coverPreviewPreparedBy">Coroner's Office</dd>
+                    <dd id="coverPreviewPreparedBy"></dd>
                   </div>
                   <div>
                     <dt>Documents</dt>
@@ -287,9 +303,7 @@
                   </div>
                 </dl>
 
-                <p class="cover-note" id="coverPreviewNote">
-                  Merged locally. OCR uses the bundled English language file.
-                </p>
+                <p class="cover-note" id="coverPreviewNote" hidden></p>
               </div>
             </article>
           </div>
@@ -311,7 +325,7 @@
                   <div class="split-row">
                     <div class="field">
                       <label for="pagePrefix">Page prefix</label>
-                      <input id="pagePrefix" type="text" value="B-" />
+                      <input id="pagePrefix" type="text" value="" />
                     </div>
                     <div class="field">
                       <label for="pageStart">Start number</label>
