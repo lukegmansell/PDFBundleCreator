@@ -23,7 +23,7 @@
           <span class="version-chip">v1.4</span>
           <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">Switch to light mode</button>
         </div>
-        <p class="subtitle">Portable PDF bundling. No network. Files stay on this machine.</p>
+        <p class="subtitle">Offline case bundle assembly for jurisdictional records. No network. Files stay on this machine.</p>
 
         <div class="metrics" aria-label="Bundle summary">
           <article class="metric-card">
@@ -44,7 +44,7 @@
       <section class="status-strip" aria-live="polite">
         <span class="status-badge" id="statusBadge" data-tone="idle">Idle</span>
         <p class="status-text" id="statusText">
-          Add PDF files to begin. The app merges locally and uses the bundled English OCR model when requested.
+          Add PDF files to begin. Bundle assembly, OCR, review, and export stay on this machine.
         </p>
       </section>
 
@@ -79,7 +79,7 @@
 
               <div class="stack">
                 <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-describedby="dropzoneHint">
-                  <h3 style="margin: 0;">Drop PDF files here</h3>
+                  <h3>Drop PDF files here</h3>
                   <p class="help-text" id="dropzoneHint">
                     The app reads only files that are selected directly or dropped onto this window.
                   </p>
@@ -129,7 +129,7 @@
                 </dl>
               </div>
 
-              <div class="stack" style="margin-top: 16px;">
+              <div class="stack summary-guidance">
                 <div class="notice">
                   Browser-only export is enabled in this build. Merge, OCR, cover generation, and page numbering all stay local.
                 </div>

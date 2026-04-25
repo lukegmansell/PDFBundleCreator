@@ -2,7 +2,7 @@
   "use strict";
 
   const initialStatus =
-    "Add PDF files to begin. The app merges locally and uses the bundled English OCR model when requested.";
+    "Add PDF files to begin. Bundle assembly, OCR, review, and export stay on this machine.";
 
   const state = {
     activeTab: "build",
